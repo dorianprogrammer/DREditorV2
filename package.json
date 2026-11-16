@@ -1,0 +1,34 @@
+{
+  "name": "dreditor",
+  "productName": "DR Editor",
+  "version": "0.1.0",
+  "description": "Editor de videos para TikTok, hecho para niños",
+  "author": "Dorian Rodriguez",
+  "main": "./out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
+    "dist:win": "node scripts/fetch-ffmpeg.mjs win32 x64 && electron-vite build && electron-builder --win --x64",
+    "dist:mac": "node scripts/fetch-ffmpeg.mjs darwin arm64 && electron-vite build && electron-builder --mac"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.3.0",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@fontsource-variable/nunito": "^5.3.0",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "45.0.0",
+    "electron-builder": "^26.18.0",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "typescript": "5.9",
+    "vite": "^7.3.7"
+  }
+}

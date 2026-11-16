@@ -1,0 +1,34 @@
+appId: com.dorianrodriguez.dreditor
+productName: DR Editor
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - package.json
+  - "!node_modules/ffmpeg-static/**"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  extraResources:
+    - from: resources/ffmpeg/win32-x64
+      to: ffmpeg
+nsis:
+  oneClick: true
+  perMachine: false
+  shortcutName: DR Editor
+  createDesktopShortcut: always
+mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+  category: public.app-category.video
+  hardenedRuntime: false
+  identity: null
+  extendInfo:
+    NSMicrophoneUsageDescription: DR Editor usa el micrófono para grabar tu voz sobre el video.
+  extraResources:
+    - from: resources/ffmpeg/darwin-arm64
+      to: ffmpeg
