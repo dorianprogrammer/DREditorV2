@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { MIN_CLIP_SECONDS, layoutClips, mediaUrl, projectDuration, type PlacedClip } from '@shared/project'
-import { formatTime, moveClip, updateClip, updateText, updateVoice, useEditor } from '../store'
+import { formatTime, moveClip, pickMusic, updateClip, updateText, updateVoice, useEditor } from '../store'
 
 const LABEL_W = 96
 const TRANSITION_ICON: Record<string, string> = { fade: '✨', slide: '👉', circle: '⭕', zoom: '🔍', none: '＋' }
@@ -226,6 +226,9 @@ export function Timeline(): React.JSX.Element {
           <div className="track-label tone-voice" style={{ height: 30 * voiceRows + 8 }}>
             🎤 Voces
           </div>
+          <div className="track-label tone-music" style={{ height: 38 }}>
+            🎵 Música
+          </div>
         </div>
 
         <div className="tracks-scroll" ref={scrollRef} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
@@ -311,6 +314,38 @@ export function Timeline(): React.JSX.Element {
                   <span className="block-label">🎤 {formatTime(v.duration)}</span>
                 </div>
               ))}
+            </div>
+
+            <div
+              className="track track-music"
+              style={{ height: 38 }}
+              onPointerDown={(e) => {
+                begin(e, 'scrub', '', { start: 0, end: 0, duration: 0 })
+                useEditor.getState().select(null)
+              }}
+            >
+              {project.music ? (
+                <div
+                  className={`block music ${isSel('music', 'music') ? 'selected' : ''}`}
+                  style={{ left: 0, width: Math.max(total * pps, 120), top: 6 }}
+                  onPointerDown={(e) => {
+                    if (recording || e.button !== 0) return
+                    e.stopPropagation()
+                    useEditor.getState().select({ kind: 'music', id: 'music' })
+                  }}
+                  title={project.music.name}
+                >
+                  <span className="block-label">🎵 {project.music.name}</span>
+                </div>
+              ) : (
+                <button
+                  className="track-add"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={() => pickMusic()}
+                >
+                  ＋ Poner música de fondo
+                </button>
+              )}
             </div>
 
             <div className="playhead" style={{ left: time * pps }}>

@@ -5,12 +5,17 @@ import { existsSync, mkdirSync, promises as fs, statSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { basename, extname, join } from 'node:path'
 import {
+  DUCK_LEVEL,
+  DUCK_RAMP,
   FPS,
+  MUSIC_FADE_IN,
+  MUSIC_FADE_OUT,
   OUT_H,
   OUT_W,
   layoutClips,
   projectDuration,
   type MediaInfo,
+  type MusicItem,
   type Project,
   type SoundRange,
   type TransitionKind
@@ -121,6 +126,13 @@ export async function prepareMedia(file: string): Promise<MediaInfo> {
   }
 }
 
+/** Checks a song file and reads its length. */
+export async function prepareMusic(file: string): Promise<Pick<MusicItem, 'path' | 'name' | 'duration'>> {
+  const info = await probe(file)
+  if (!info.hasAudio || info.duration <= 0) throw new Error('El archivo no tiene sonido')
+  return { path: file, name: basename(file, extname(file)), duration: info.duration }
+}
+
 /** Converts a MediaRecorder recording (WebM without duration info) to a normal M4A file. */
 export async function saveVoice(data: Uint8Array, dir: string): Promise<{ path: string; duration: number }> {
   mkdirSync(dir, { recursive: true })
@@ -190,6 +202,10 @@ const XFADE: Record<Exclude<TransitionKind, 'none'>, string> = {
 
 const sec = (n: number): string => Math.max(0, n).toFixed(3)
 
+// Mono sources (recorded voices, many songs) go to both speakers at full level, like Chromium plays them in the
+// preview. FFmpeg's default mono-to-stereo conversion makes them 3 dB quieter.
+const TO_STEREO = 'aresample=48000,aformat=channel_layouts=mono|stereo,pan=stereo|FL<FL+FC|FR<FR+FC'
+
 /** Builds the ffmpeg arguments and filter graph that render the project to a TikTok-ready MP4. */
 export function buildExportGraph(
   project: Project,
@@ -230,7 +246,7 @@ export function buildExportGraph(
       const fadeIn = pc.transitionIn
       const fadeOut = placed[i + 1]?.transitionIn ?? 0
       let chain =
-        `[${idx}:a]aresample=48000,aformat=channel_layouts=stereo,atrim=duration=${sec(pc.length)},` +
+        `[${idx}:a]${TO_STEREO},atrim=duration=${sec(pc.length)},` +
         `asetpts=PTS-STARTPTS,volume=${c.volume.toFixed(2)}`
       if (fadeIn > 0) chain += `,afade=t=in:d=${sec(fadeIn)}`
       if (fadeOut > 0) chain += `,afade=t=out:st=${sec(pc.length - fadeOut)}:d=${sec(fadeOut)}`
@@ -270,11 +286,33 @@ export function buildExportGraph(
     inputs.push('-i', v.path)
     const idx = n++
     filters.push(
-      `[${idx}:a]aresample=48000,aformat=channel_layouts=stereo,volume=${v.volume.toFixed(2)},` +
+      `[${idx}:a]${TO_STEREO},volume=${v.volume.toFixed(2)},` +
         `adelay=${Math.round(v.start * 1000)}:all=1[vo${k}]`
     )
     audio.push(`[vo${k}]`)
   })
+
+  const m = project.music
+  if (m && total > 0) {
+    // The song loops from its beginning; skipping `offset` seconds of the first pass matches the preview.
+    inputs.push('-stream_loop', '-1', '-t', sec(m.offset + total + 1), '-i', m.path)
+    const idx = n++
+    const fadeOut = Math.min(MUSIC_FADE_OUT, total / 2)
+    let chain =
+      `[${idx}:a]${TO_STEREO},atrim=start=${sec(m.offset)},asetpts=PTS-STARTPTS,` +
+      `atrim=duration=${sec(total)},volume=${m.volume.toFixed(2)}`
+    if (m.duck && project.voices.length) {
+      // Same curve as duckAmount() in the preview: ramps of DUCK_RAMP seconds around each voice.
+      const w = project.voices.map(
+        (v) => `clip((min(t-(${(v.start - DUCK_RAMP).toFixed(3)}),${(v.start + v.duration + DUCK_RAMP).toFixed(3)}-t))/${DUCK_RAMP},0,1)`
+      )
+      const maxW = w.reduce((acc, x) => `max(${acc},${x})`)
+      chain += `,volume='1-${(1 - DUCK_LEVEL).toFixed(2)}*${maxW}':eval=frame`
+    }
+    chain += `,afade=t=in:d=${sec(Math.min(MUSIC_FADE_IN, total / 2))},afade=t=out:st=${sec(total - fadeOut)}:d=${sec(fadeOut)}[mus]`
+    filters.push(chain)
+    audio.push('[mus]')
+  }
 
   if (audio.length === 1) filters.push(`${audio[0]}anull[aout]`)
   else filters.push(`${audio.join('')}amix=inputs=${audio.length}:duration=first:normalize=0,alimiter=limit=0.95[aout]`)

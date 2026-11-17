@@ -2,8 +2,8 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell, systemPrefer
 import { existsSync, mkdirSync, promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import type { ExportRequest, ExportResult, MediaInfo, Project } from '../shared/project'
-import { cancelExport, findSound, IMAGE_EXTS, prepareMedia, renderVideo, saveVoice, VIDEO_EXTS } from './ffmpeg'
+import { AUDIO_EXTS, type ExportRequest, type ExportResult, type MediaInfo, type Project } from '../shared/project'
+import { cancelExport, findSound, IMAGE_EXTS, prepareMedia, prepareMusic, renderVideo, saveVoice, VIDEO_EXTS } from './ffmpeg'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 
 registerMediaScheme()
@@ -81,6 +81,18 @@ function registerIpc(): void {
 
   ipcMain.handle('media:prepare', (_e, paths: string[]) => prepareAll(paths))
 
+  ipcMain.handle('music:pick', async () => {
+    const res = await dialog.showOpenDialog(win!, {
+      title: 'Elige una canción',
+      properties: ['openFile'],
+      filters: [{ name: 'Música', extensions: AUDIO_EXTS.map((e) => e.slice(1)) }]
+    })
+    if (res.canceled) return null
+    return prepareMusic(res.filePaths[0])
+  })
+
+  ipcMain.handle('music:prepare', (_e, file: string) => prepareMusic(file))
+
   ipcMain.handle('media:findSound', (_e, file: string, start: number, end: number) => findSound(file, start, end))
 
   ipcMain.handle('voice:save', (_e, data: Uint8Array) => saveVoice(data, voicesDir()))
@@ -93,10 +105,15 @@ function registerIpc(): void {
   ipcMain.handle('project:load', async (): Promise<{ project: Project | null; missing: number }> => {
     try {
       const project = JSON.parse(await fs.readFile(projectFile(), 'utf8')) as Project
-      const before = project.clips.length + project.voices.length
+      let missing = project.clips.length + project.voices.length
       project.clips = project.clips.filter((c) => existsSync(c.path))
       project.voices = project.voices.filter((v) => existsSync(v.path))
-      return { project, missing: before - project.clips.length - project.voices.length }
+      missing -= project.clips.length + project.voices.length
+      if (project.music && !existsSync(project.music.path)) {
+        project.music = null
+        missing++
+      }
+      return { project, missing }
     } catch {
       return { project: null, missing: 0 }
     }

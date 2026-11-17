@@ -20,7 +20,7 @@ export function App(): React.JSX.Element {
     window.api.loadProject().then(({ project, missing }) => {
       if (cancelled) return
       if (project) useEditor.getState().loadProject(project)
-      if (missing) useEditor.getState().showToast('Algunos videos ya no están en la computadora y se quitaron')
+      if (missing) useEditor.getState().showToast('Algunos archivos ya no están en la computadora y se quitaron')
       stop = startAutosave()
     })
     return () => {
@@ -95,7 +95,7 @@ export function App(): React.JSX.Element {
         <div className="drop-hint">
           <div>
             <span aria-hidden>📥</span>
-            Suelta aquí tus videos y fotos
+            Suelta aquí tus videos, fotos o música
           </div>
         </div>
       )}

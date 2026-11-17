@@ -12,6 +12,9 @@ Built with Electron for Windows. A macOS build exists for testing.
   threshold set from the clip's average loudness). Pauses under 0.6 s stay, and texts and voices move with the video
 - Text over the video: colors, 3 styles (outline, box, shadow), 4 fonts, 4 sizes, drag to move on the video
 - Voice-over recording with a 3-2-1 countdown; the video plays muted while recording
+- Background music: one song (MP3, M4A, WAV, OGG, FLAC) under the whole video, picked with the button or dropped on
+  the window. It loops if it's shorter than the video, fades in and out, can skip the song's intro, and gets quieter
+  automatically while a recorded voice plays (`musicGain` in `src/shared/project.ts`, matched by the export)
 - Transitions: cut, fade, slide, circle, zoom
 - "Zona segura TikTok" guide that shows where TikTok's buttons and caption cover the video
 - Undo/redo, autosave, keyboard shortcuts (space, C or Ctrl/⌘+B to cut, Ctrl/⌘+Z, Ctrl+Y, Delete, arrow keys)

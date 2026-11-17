@@ -301,8 +301,31 @@ h4 {
   box-shadow: inset 0 -4px 0 var(--green);
 }
 
+.tool-music {
+  box-shadow: inset 0 -4px 0 var(--purple);
+}
+
 .tool.small {
   padding: 10px 6px;
+}
+
+/* Short windows (laptops, the minimum window size): smaller tools so all of them fit without scrolling. */
+@media (max-height: 820px) {
+  .tool-rail {
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .tool,
+  .tool.small {
+    gap: 3px;
+    padding: 6px 4px;
+    font-size: 12px;
+  }
+
+  .tool-icon {
+    font-size: 22px;
+  }
 }
 
 .tool.small .tool-icon {
@@ -487,6 +510,10 @@ h4 {
   color: var(--green);
 }
 
+.tone-music {
+  color: var(--purple);
+}
+
 .panel-section {
   display: flex;
   flex-direction: column;
@@ -653,6 +680,10 @@ input[type='range']::-webkit-slider-thumb {
   padding: 4px;
   border-radius: 999px;
   background: var(--raised);
+}
+
+.segmented.two {
+  grid-template-columns: repeat(2, 1fr);
 }
 
 .segmented button {
@@ -915,6 +946,34 @@ input[type='range']::-webkit-slider-thumb {
   background: var(--green);
   color: #06301f;
   border: 2px solid #2fc489;
+}
+
+.block.music {
+  height: 26px;
+  background: var(--purple);
+  color: #1a0f45;
+  border: 2px solid #7f5cf0;
+  cursor: pointer;
+}
+
+.track-add {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  height: 26px;
+  padding: 0 14px;
+  border: 2px dashed var(--purple);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--purple);
+  font: inherit;
+  font-weight: 800;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.track-add:hover {
+  background: rgba(155, 123, 255, 0.12);
 }
 
 .block.selected {

@@ -1,5 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import type { ExportRequest, ExportResult, MediaInfo, Project, SoundRange } from '../shared/project'
+import type { ExportRequest, ExportResult, MediaInfo, MusicItem, Project, SoundRange } from '../shared/project'
+
+type Song = Pick<MusicItem, 'path' | 'name' | 'duration'>
 
 type Prepared = { items: MediaInfo[]; failed: string[] }
 
@@ -13,6 +15,8 @@ const api = {
     ipcRenderer.on('media:progress', fn)
     return () => ipcRenderer.removeListener('media:progress', fn)
   },
+  pickMusic: (): Promise<Song | null> => ipcRenderer.invoke('music:pick'),
+  prepareMusic: (path: string): Promise<Song> => ipcRenderer.invoke('music:prepare', path),
   findSound: (path: string, start: number, end: number): Promise<SoundRange[]> =>
     ipcRenderer.invoke('media:findSound', path, start, end),
   askMic: (): Promise<boolean> => ipcRenderer.invoke('mic:ask'),

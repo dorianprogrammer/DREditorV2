@@ -52,12 +52,58 @@ export interface VoiceItem {
   volume: number
 }
 
+/** One song under the whole video. It loops if it is shorter than the video. */
+export interface MusicItem {
+  path: string
+  name: string
+  /** Full length of the song. */
+  duration: number
+  /** Second of the song where the video starts (to skip an intro). */
+  offset: number
+  volume: number
+  /** Lower the music while a recorded voice plays. */
+  duck: boolean
+}
+
 export interface Project {
   version: 1
   clips: Clip[]
   texts: TextItem[]
   voices: VoiceItem[]
+  /** Added after the first release, so older projects don't have it. */
+  music?: MusicItem | null
 }
+
+export const AUDIO_EXTS = ['.mp3', '.m4a', '.aac', '.wav', '.ogg', '.oga', '.opus', '.flac']
+
+export const MUSIC_FADE_IN = 0.5
+export const MUSIC_FADE_OUT = 1.5
+/** Music level while a voice plays, and how long it takes to go down or back up. */
+export const DUCK_LEVEL = 0.3
+export const DUCK_RAMP = 0.3
+
+/** How much each voice pushes the music down at time t (0 = not at all, 1 = fully ducked). */
+export function duckAmount(voices: VoiceItem[], t: number): number {
+  let w = 0
+  for (const v of voices) {
+    const edge = Math.min(t - (v.start - DUCK_RAMP), v.start + v.duration + DUCK_RAMP - t) / DUCK_RAMP
+    w = Math.max(w, Math.max(0, Math.min(1, edge)))
+  }
+  return w
+}
+
+/** Music volume at timeline time t: user volume, fade in/out and ducking. The export builds the same curve in FFmpeg. */
+export function musicGain(p: Project, t: number, total: number): number {
+  const m = p.music
+  if (!m) return 0
+  const fadeOut = Math.min(MUSIC_FADE_OUT, total / 2)
+  let g = m.volume * Math.max(0, Math.min(1, t / MUSIC_FADE_IN, (total - t) / fadeOut))
+  if (m.duck) g *= 1 - (1 - DUCK_LEVEL) * duckAmount(p.voices, t)
+  return g
+}
+
+/** Second of the song that plays at timeline time t (the song loops). */
+export const musicPosition = (m: MusicItem, t: number): number => (m.offset + t) % Math.max(m.duration, 0.01)
 
 /** A stretch of a media file, in seconds of the source. */
 export interface SoundRange {

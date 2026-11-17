@@ -8,6 +8,7 @@ import {
   type FontKey,
   type TextItem,
   type TextStyle,
+  type MusicItem,
   type TransitionKind,
   type VoiceItem
 } from '@shared/project'
@@ -16,9 +17,12 @@ import {
   TEXT_COLORS,
   canSplit,
   deleteSelection,
+  formatTime,
+  pickMusic,
   removeSilences,
   splitAtPlayhead,
   updateClip,
+  updateMusic,
   updateText,
   updateVoice,
   useEditor
@@ -70,10 +74,11 @@ export function Inspector(): React.JSX.Element {
     const v = project.voices.find((x) => x.id === selection.id)
     if (v) return <VoicePanel item={v} />
   }
+  if (selection?.kind === 'music' && project.music) return <MusicPanel music={project.music} />
   return (
     <div className="panel panel-empty">
       <h3>¿Qué quieres cambiar?</h3>
-      <p>Toca un video, un texto o una voz abajo, en la línea de tiempo, para editarlo aquí.</p>
+      <p>Toca un video, un texto, una voz o la música abajo, en la línea de tiempo, para editarlo aquí.</p>
       <ul className="tips">
         <li>
           <span aria-hidden>👆</span> Arrastra los videos para cambiar el orden.
@@ -371,6 +376,70 @@ function VoicePanel({ item }: { item: VoiceItem }): React.JSX.Element {
         </button>
         <button className="btn danger" onClick={deleteSelection}>
           <span aria-hidden>🗑️</span> Borrar voz
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function MusicPanel({ music }: { music: MusicItem }): React.JSX.Element {
+  const listen = (): void => {
+    const st = useEditor.getState()
+    st.seek(0)
+    st.setPlaying(true)
+  }
+  return (
+    <div className="panel">
+      <PanelHeader icon="🎵" title={music.name} tone="music" />
+      <section className="panel-section">
+        <Slider
+          label="Volumen de la música"
+          value={music.volume}
+          min={0}
+          max={1}
+          step={0.05}
+          display={music.volume === 0 ? 'Silencio' : `${Math.round(music.volume * 100)}%`}
+          onChange={(v) => updateMusic({ volume: v }, 'music-vol')}
+        />
+        <Slider
+          label="Empieza la canción en"
+          value={music.offset}
+          min={0}
+          max={Math.max(0, Math.floor(music.duration) - 1)}
+          step={1}
+          display={formatTime(music.offset)}
+          onChange={(v) => updateMusic({ offset: v }, 'music-offset')}
+        />
+        <p className="hint">Sirve para saltarte el principio de la canción.</p>
+      </section>
+
+      <section className="panel-section">
+        <h4>Bajar la música cuando hablo</h4>
+        <div className="segmented two">
+          <button className={music.duck ? 'on' : ''} onClick={() => updateMusic({ duck: true })}>
+            Sí
+          </button>
+          <button className={!music.duck ? 'on' : ''} onClick={() => updateMusic({ duck: false })}>
+            No
+          </button>
+        </div>
+        <p className="hint">Así tu voz se escucha mejor que la canción.</p>
+      </section>
+
+      <p className="hint">
+        Si usas una canción famosa, TikTok podría quitarle el sonido a tu video. También puedes elegir la música dentro
+        de TikTok al subirlo.
+      </p>
+
+      <div className="panel-actions">
+        <button className="btn" onClick={listen}>
+          <span aria-hidden>▶</span> Escuchar
+        </button>
+        <button className="btn" onClick={() => pickMusic()}>
+          <span aria-hidden>🔄</span> Cambiar
+        </button>
+        <button className="btn danger" onClick={deleteSelection}>
+          <span aria-hidden>🗑️</span> Quitar
         </button>
       </div>
     </div>

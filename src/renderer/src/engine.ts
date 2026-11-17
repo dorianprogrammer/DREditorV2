@@ -1,4 +1,12 @@
-import { layoutClips, mediaUrl, projectDuration, type Clip, type Project } from '@shared/project'
+import {
+  layoutClips,
+  mediaUrl,
+  musicGain,
+  musicPosition,
+  projectDuration,
+  type Clip,
+  type Project
+} from '@shared/project'
 import { drawFitted, drawSafeZone, drawSelectionBox, drawText, drawTransition, isDrawable, type Media } from './draw'
 import { useEditor } from './store'
 
@@ -12,6 +20,7 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
 export class PreviewEngine {
   private clipEls = new Map<string, { src: string; el: Media }>()
   private voiceEls = new Map<string, { src: string; el: HTMLAudioElement }>()
+  private music: { src: string; el: HTMLAudioElement } | null = null
   private raf = 0
   private clockBase = { time: 0, now: 0 }
   private lastWritten = -1
@@ -31,6 +40,8 @@ export class PreviewEngine {
     cancelAnimationFrame(this.raf)
     for (const { el } of this.clipEls.values()) if (el instanceof HTMLVideoElement) this.release(el)
     for (const { el } of this.voiceEls.values()) this.release(el)
+    if (this.music) this.release(this.music.el)
+    this.music = null
     this.clipEls.clear()
     this.voiceEls.clear()
   }
@@ -71,6 +82,19 @@ export class PreviewEngine {
       if (keepV.has(id)) continue
       this.release(el)
       this.voiceEls.delete(id)
+    }
+
+    const musicSrc = p.music ? mediaUrl(p.music.path) : null
+    if (this.music?.src !== musicSrc) {
+      if (this.music) this.release(this.music.el)
+      this.music = null
+      if (musicSrc) {
+        const el = new Audio()
+        el.preload = 'auto'
+        el.loop = true
+        el.src = musicSrc
+        this.music = { src: musicSrc, el }
+      }
     }
   }
 
@@ -164,6 +188,24 @@ export class PreviewEngine {
         el.currentTime = local
         el.play().catch(() => {})
       } else if (Math.abs(el.currentTime - local) > DRIFT_PLAYING) el.currentTime = local
+    }
+
+    if (this.music && p.music) {
+      const el = this.music.el
+      if (!playing || muted || t >= total) {
+        if (!el.paused) el.pause()
+      } else {
+        el.volume = clamp01(musicGain(p, t, total))
+        const local = musicPosition(p.music, t)
+        // The song loops, so compare positions around the loop point.
+        const len = Math.max(p.music.duration, 0.01)
+        const off = Math.abs(el.currentTime - local)
+        const drift = Math.min(off, len - off)
+        if (el.paused) {
+          el.currentTime = local
+          el.play().catch(() => {})
+        } else if (drift > DRIFT_PLAYING) el.currentTime = local
+      }
     }
 
     this.draw(p, t, active, placed, st.selection, st.safeZone, playing)

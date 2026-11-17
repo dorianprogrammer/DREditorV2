@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import {
+  AUDIO_EXTS,
   MIN_CLIP_SECONDS,
   clipLength,
   emptyProject,
@@ -7,16 +8,18 @@ import {
   projectDuration,
   type Clip,
   type MediaInfo,
+  type MusicItem,
   type Project,
   type SoundRange,
   type TextItem
 } from '@shared/project'
 
-export type Selection = { kind: 'clip' | 'text' | 'voice'; id: string } | null
+export type Selection = { kind: 'clip' | 'text' | 'voice' | 'music'; id: string } | null
 
 const HISTORY_LIMIT = 100
 const COALESCE_MS = 700
 const IMAGE_SECONDS = 3
+const MUSIC_VOLUME = 0.3
 
 interface EditorState {
   project: Project
@@ -286,6 +289,7 @@ export function deleteSelection(): void {
     if (sel.kind === 'clip') p.clips = p.clips.filter((c) => c.id !== sel.id)
     if (sel.kind === 'text') p.texts = p.texts.filter((t) => t.id !== sel.id)
     if (sel.kind === 'voice') p.voices = p.voices.filter((v) => v.id !== sel.id)
+    if (sel.kind === 'music') p.music = null
   })
   st.select(null)
 }
@@ -320,6 +324,37 @@ export function updateVoice(id: string, patch: Partial<Project['voices'][number]
   }, coalesceKey)
 }
 
+export function updateMusic(patch: Partial<MusicItem>, coalesceKey?: string): void {
+  useEditor.getState().update((p) => {
+    if (p.music) Object.assign(p.music, patch)
+  }, coalesceKey)
+}
+
+/** Puts a song under the video. Replacing a song keeps the chosen volume and ducking. */
+function setMusic(song: Pick<MusicItem, 'path' | 'name' | 'duration'>): void {
+  const st = useEditor.getState()
+  const prev = st.project.music
+  st.update((p) => {
+    p.music = { ...song, offset: 0, volume: prev?.volume ?? MUSIC_VOLUME, duck: prev?.duck ?? true }
+  })
+  st.select({ kind: 'music', id: 'music' })
+}
+
+const MUSIC_ERROR = 'Esa canción no se pudo abrir. Prueba con un archivo MP3.'
+
+/** Opens the file picker for a song. */
+export async function pickMusic(): Promise<void> {
+  try {
+    const song = await window.api.pickMusic()
+    if (song) setMusic(song)
+  } catch (err) {
+    console.error('pickMusic failed', err)
+    useEditor.getState().showToast(MUSIC_ERROR)
+  }
+}
+
+const isAudio = (path: string): boolean => AUDIO_EXTS.some((e) => path.toLowerCase().endsWith(e))
+
 export function formatTime(t: number): string {
   const s = Math.max(0, Math.floor(t))
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
@@ -337,6 +372,18 @@ export function startAutosave(): () => void {
 
 /** Imports files by path (drag and drop), or opens the file picker when paths is null. */
 export async function importPaths(paths: string[] | null): Promise<void> {
+  // A dropped song becomes the background music; videos and photos go to the timeline.
+  const song = paths?.find(isAudio)
+  if (song) {
+    try {
+      setMusic(await window.api.prepareMusic(song))
+    } catch (err) {
+      console.error('prepareMusic failed', err)
+      useEditor.getState().showToast(MUSIC_ERROR)
+    }
+    paths = paths!.filter((p) => !isAudio(p))
+    if (!paths.length) return
+  }
   const { items, failed } = paths ? await window.api.prepareMedia(paths) : await window.api.pickMedia()
   addMedia(items)
   if (failed.length) {

@@ -1,4 +1,4 @@
-import { addText, canSplit, deleteSelection, importPaths, splitAtPlayhead, useEditor } from '../store'
+import { addText, canSplit, deleteSelection, importPaths, pickMusic, splitAtPlayhead, useEditor } from '../store'
 
 export function ToolRail(): React.JSX.Element {
   const recording = useEditor((s) => s.recording)
@@ -33,6 +33,20 @@ export function ToolRail(): React.JSX.Element {
           🎤
         </span>
         Grabar voz
+      </button>
+      <button
+        className="tool tool-music"
+        disabled={recording}
+        onClick={() => {
+          const st = useEditor.getState()
+          if (st.project.music) st.select({ kind: 'music', id: 'music' })
+          else pickMusic()
+        }}
+      >
+        <span className="tool-icon" aria-hidden>
+          🎵
+        </span>
+        Música
       </button>
       <div className="tool-divider" />
       <button className="tool small" disabled={recording || !splittable} onClick={splitAtPlayhead} title={`Corta el video donde está la línea roja (C o ${window.api.platform === 'darwin' ? '⌘B' : 'Ctrl+B'})`}>
