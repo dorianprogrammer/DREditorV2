@@ -1,0 +1,86 @@
+# Builds the installers and publishes them as a GitHub Release.
+#
+# Release:    npm version patch && git push --follow-tags    (pushes a tag like v0.1.1)
+# Test build: Actions tab → "Release" → "Run workflow"        (installers only as downloadable artifacts)
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Windows
+            os: windows-latest
+            script: dist:win
+            files: |
+              dist/*.exe
+          - name: Mac
+            os: macos-latest
+            script: dist:mac
+            files: |
+              dist/*.dmg
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Tag matches package.json version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::The tag is $GITHUB_REF_NAME but package.json says $version. Use 'npm version' to make both."
+            exit 1
+          fi
+
+      - run: npm ci
+      - run: npm run typecheck
+
+      - name: Build installer
+        run: npm run ${{ matrix.script }} -- --publish never
+        env:
+          # Keeps electron-builder from looking for a signing certificate in the runner.
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.name }}
+          path: ${{ matrix.files }}
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: installers
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ls -la installers
+          gh release create "$GITHUB_REF_NAME" installers/* \
+            --title "DR Editor ${GITHUB_REF_NAME#v}" \
+            --notes-file .github/release-notes.md \
+            --generate-notes

@@ -28,19 +28,42 @@ npm run dev        # run the app with hot reload
 npm run typecheck
 ```
 
-## Building installers
+## Releases
+
+Installers are built by GitHub Actions ([.github/workflows/release.yml](.github/workflows/release.yml)) and published
+on the repository's **Releases** page, so another computer only needs to download one file:
+
+| File | What it is |
+|---|---|
+| `DR-Editor-Setup-<version>.exe` | Windows installer (desktop shortcut, uninstall from Settings) |
+| `DR-Editor-<version>-portable.exe` | Windows, no install: runs with a double click, also from a USB stick |
+| `DR-Editor-<version>-mac-arm64.dmg` | macOS on Apple Silicon, for testing |
+
+To publish a new version:
 
 ```bash
-npm run dist:win   # Windows installer → dist/DR Editor Setup <version>.exe
-npm run dist:mac   # macOS .dmg (Apple Silicon), for testing
+npm version patch          # 0.1.0 → 0.1.1: updates package.json, commits and creates the tag v0.1.1
+git push --follow-tags     # pushing the tag starts the build; the release appears in ~10 minutes
 ```
 
-`dist:win` downloads the Windows FFmpeg binary into `resources/ffmpeg/win32-x64/` and the Windows Electron
-runtime, so it needs internet access. If electron-builder asks for Wine on macOS, build on a Windows PC
-(or a Windows CI runner) instead.
+Use `npm version minor` for new features (0.1.x → 0.2.0). The workflow fails if the tag doesn't match the version in
+`package.json`. To try a build without publishing, open **Actions → Release → Run workflow**; the installers are then
+attached to that run as artifacts. The text shown on each release (download table, SmartScreen and Gatekeeper help, in
+Spanish) is in [.github/release-notes.md](.github/release-notes.md), followed by GitHub's list of changes.
 
-The app is not code-signed, so Windows SmartScreen shows a warning the first time it runs
-("More info" → "Run anyway").
+The app is not code-signed. Windows SmartScreen warns the first time it runs ("More info" → "Run anyway"). The Mac
+build has an ad-hoc signature, so macOS asks to confirm in System Settings → Privacy & Security → "Open Anyway".
+
+### Building locally
+
+```bash
+npm run dist:win   # Windows installer + portable .exe in dist/ (best run on Windows)
+npm run dist:mac   # macOS .dmg (Apple Silicon)
+```
+
+`dist:win` downloads the Windows FFmpeg binary into `resources/ffmpeg/win32-x64/` and the Windows Electron runtime, so it
+needs internet access. On macOS, electron-builder may ask for Wine; the GitHub workflow avoids that by building on a
+Windows runner.
 
 ## How it works
 

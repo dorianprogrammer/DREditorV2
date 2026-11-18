@@ -12,23 +12,32 @@ win:
   target:
     - target: nsis
       arch: [x64]
+    - target: portable
+      arch: [x64]
   extraResources:
     - from: resources/ffmpeg/win32-x64
       to: ffmpeg
 nsis:
+  artifactName: DR-Editor-Setup-${version}.exe
   oneClick: true
   perMachine: false
   shortcutName: DR Editor
   createDesktopShortcut: always
+portable:
+  artifactName: DR-Editor-${version}-portable.exe
 mac:
+  artifactName: DR-Editor-${version}-mac-arm64.${ext}
   target:
     - target: dmg
       arch: [arm64]
   category: public.app-category.video
   hardenedRuntime: false
-  identity: null
+  # "-" = ad-hoc signature. Without any signature, macOS calls a downloaded app "damaged" on Apple Silicon.
+  identity: "-"
   extendInfo:
     NSMicrophoneUsageDescription: DR Editor usa el micrófono para grabar tu voz sobre el video.
   extraResources:
     - from: resources/ffmpeg/darwin-arm64
       to: ffmpeg
+# Installers are uploaded to GitHub Releases by .github/workflows/release.yml, not by electron-builder.
+publish: null
