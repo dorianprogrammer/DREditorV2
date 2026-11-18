@@ -1,12 +1,14 @@
 # DR Editor
 
-A simple video editor for kids (9–10 years old) for making TikTok videos. The interface is in Spanish.
+A simple video editor for kids (9–10 years old) for making TikTok and YouTube videos. The interface is in Spanish.
 Built with Electron for Windows. A macOS build exists for testing.
 
 ## What it does
 
 - Import videos and photos (button or drag and drop)
-- Vertical 9:16 preview (1080×1920); horizontal clips are fitted over a blurred copy of themselves
+- Two formats, switchable at any time from the top bar: TikTok (vertical 9:16, 1080×1920) and YouTube (horizontal
+  16:9, 1920×1080). Vertical and horizontal clips can be mixed; each is fitted over a blurred copy of itself. After
+  saving, "Guardar también para …" exports the same edit in the other format
 - Timeline: drag to reorder, drag the edges to trim, "Cortar aquí" to split at the playhead
 - "Quitar silencios": cuts the quiet parts out of a video clip automatically (FFmpeg `silencedetect`, with the
   threshold set from the clip's average loudness). Pauses under 0.6 s stay, and texts and voices move with the video
@@ -18,7 +20,7 @@ Built with Electron for Windows. A macOS build exists for testing.
 - Transitions: cut, fade, slide, circle, zoom
 - "Zona segura TikTok" guide that shows where TikTok's buttons and caption cover the video
 - Undo/redo, autosave, keyboard shortcuts (space, C or Ctrl/⌘+B to cut, Ctrl/⌘+Z, Ctrl+Y, Delete, arrow keys)
-- Export to MP4 (H.264 + AAC, 1080×1920, 30 fps) in `Videos/DR Editor/`
+- Export to MP4 (H.264 + AAC, 30 fps) in `Videos/DR Editor/`, named `Mi video TikTok …` or `Mi video YouTube …`
 
 ## Development
 

@@ -77,6 +77,41 @@ h4 {
   min-height: 0;
 }
 
+/* ---------- Format switch (top bar) ---------- */
+
+.format-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 999px;
+  background: var(--raised);
+}
+
+.format-switch button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.format-switch button:not(:disabled):not(.on):hover {
+  color: var(--text);
+}
+
+.format-switch button.on {
+  background: var(--cyan);
+  color: #062633;
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
@@ -355,12 +390,19 @@ h4 {
   background: radial-gradient(ellipse at center, #221d4b 0%, var(--bg) 70%);
 }
 
-.phone {
-  position: relative;
+.stage {
   flex: 1 1 auto;
   min-height: 0;
-  aspect-ratio: 9 / 16;
-  max-width: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Size is set inline by Preview.tsx to fit the stage with the format's shape. */
+.phone {
+  position: relative;
+  flex: none;
   border-radius: 22px;
   border: 6px solid #0b0920;
   background: #000;

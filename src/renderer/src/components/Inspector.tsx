@@ -427,8 +427,8 @@ function MusicPanel({ music }: { music: MusicItem }): React.JSX.Element {
       </section>
 
       <p className="hint">
-        Si usas una canción famosa, TikTok podría quitarle el sonido a tu video. También puedes elegir la música dentro
-        de TikTok al subirlo.
+        Si usas una canción famosa, TikTok o YouTube podrían quitarle el sonido a tu video. En TikTok también puedes
+        elegir la música al subirlo.
       </p>
 
       <div className="panel-actions">

@@ -1,11 +1,11 @@
-import { useEffect, useRef } from 'react'
-import { projectDuration } from '@shared/project'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { FORMATS, formatOf, projectDuration } from '@shared/project'
 import { layoutText } from '../draw'
 import { PreviewEngine } from '../engine'
 import { formatTime, importPaths, updateText, useEditor } from '../store'
 
-const CANVAS_W = 540
-const CANVAS_H = 960
+/** Width of the frame border around the preview (CSS .phone border, both sides). */
+const FRAME_BORDER = 12
 
 export function Preview(): React.JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -17,6 +17,22 @@ export function Preview(): React.JSX.Element {
   const safeZone = useEditor((s) => s.safeZone)
   const recording = useEditor((s) => s.recording)
   const micLive = useEditor((s) => s.micLive)
+  const format = useEditor((s) => formatOf(s.project))
+  const frame = FORMATS[format]
+  // The canvas draws at half the output size; CSS scales it to fit the space.
+  const CANVAS_W = frame.w / 2
+  const CANVAS_H = frame.h / 2
+
+  // Biggest frame with the format's shape that fits the free space (vertical and horizontal need different limits).
+  const stageRef = useRef<HTMLDivElement>(null)
+  const [stage, setStage] = useState({ w: 0, h: 0 })
+  useLayoutEffect(() => {
+    const el = stageRef.current!
+    const ro = new ResizeObserver(() => setStage({ w: el.clientWidth, h: el.clientHeight }))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const fit = Math.max(0, Math.min((stage.w - FRAME_BORDER) / CANVAS_W, (stage.h - FRAME_BORDER) / CANVAS_H))
 
   useEffect(() => {
     const engine = new PreviewEngine(canvasRef.current!)
@@ -34,12 +50,12 @@ export function Preview(): React.JSX.Element {
     const st = useEditor.getState()
     if (st.recording) return
     const ctx = canvasRef.current!.getContext('2d')!
-    const scale = CANVAS_W / 1080
+    const scale = CANVAS_W / frame.w
     const pt = toCanvas(e)
     const visible = st.project.texts.filter((t) => st.time >= t.start && st.time < t.start + t.duration)
     for (let i = visible.length - 1; i >= 0; i--) {
       const t = visible[i]
-      const { box } = layoutText(ctx, t, scale)
+      const { box } = layoutText(ctx, t, scale, frame)
       if (pt.x >= box.x && pt.x <= box.x + box.w && pt.y >= box.y && pt.y <= box.y + box.h) {
         st.setPlaying(false)
         st.select({ kind: 'text', id: t.id })
@@ -63,30 +79,35 @@ export function Preview(): React.JSX.Element {
 
   return (
     <section className="preview" aria-label="Vista previa">
-      <div className="phone">
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_W}
-          height={CANVAS_H}
-          className="preview-canvas"
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={() => (drag.current = null)}
-          onPointerCancel={() => (drag.current = null)}
-        />
-        {empty && (
-          <div className="preview-empty">
-            <div className="preview-empty-emoji" aria-hidden>
-              🎥
+      <div className="stage" ref={stageRef}>
+        <div
+          className={`phone ${format}`}
+          style={{ width: CANVAS_W * fit + FRAME_BORDER, height: CANVAS_H * fit + FRAME_BORDER }}
+        >
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="preview-canvas"
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={() => (drag.current = null)}
+            onPointerCancel={() => (drag.current = null)}
+          />
+          {empty && (
+            <div className="preview-empty">
+              <div className="preview-empty-emoji" aria-hidden>
+                🎥
+              </div>
+              <h2>¡Hagamos un video!</h2>
+              <p>Agrega tus videos y fotos para empezar. También puedes arrastrarlos aquí.</p>
+              <button className="btn primary big" onClick={() => importPaths(null)}>
+                <span aria-hidden>🎬</span> Agregar
+              </button>
             </div>
-            <h2>¡Hagamos un video!</h2>
-            <p>Agrega tus videos y fotos para empezar. También puedes arrastrarlos aquí.</p>
-            <button className="btn primary big" onClick={() => importPaths(null)}>
-              <span aria-hidden>🎬</span> Agregar
-            </button>
-          </div>
-        )}
-        {micLive && <div className="rec-badge">● GRABANDO</div>}
+          )}
+          {micLive && <div className="rec-badge">● GRABANDO</div>}
+        </div>
       </div>
 
       <div className="transport">
@@ -114,13 +135,15 @@ export function Preview(): React.JSX.Element {
         <div className="transport-time">
           <strong>{formatTime(time)}</strong> / {formatTime(total)}
         </div>
-        <button
-          className={`chip ${safeZone ? 'on' : ''}`}
-          onClick={st.toggleSafeZone}
-          title="Muestra dónde TikTok pone sus botones, para que tu texto no quede tapado"
-        >
-          Zona segura TikTok
-        </button>
+        {format === 'tiktok' && (
+          <button
+            className={`chip ${safeZone ? 'on' : ''}`}
+            onClick={st.toggleSafeZone}
+            title="Muestra dónde TikTok pone sus botones, para que tu texto no quede tapado"
+          >
+            Zona segura TikTok
+          </button>
+        )}
       </div>
     </section>
   )

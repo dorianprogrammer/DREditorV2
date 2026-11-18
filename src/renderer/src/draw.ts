@@ -1,4 +1,4 @@
-import { FONT_FAMILIES, OUT_H, OUT_W, type TextItem, type TransitionKind } from '@shared/project'
+import { FONT_FAMILIES, type Frame, type TextItem, type TransitionKind } from '@shared/project'
 
 type Ctx = CanvasRenderingContext2D
 export type Media = HTMLVideoElement | HTMLImageElement
@@ -15,16 +15,20 @@ export const isDrawable = (el: Media | undefined): el is Media => {
 }
 
 const blurCanvas = document.createElement('canvas')
-blurCanvas.width = 27
-blurCanvas.height = 48
 
 /**
- * Draws media fitted inside the 9:16 frame over a blurred, darker copy of itself,
+ * Draws media fitted inside the frame (9:16 or 16:9) over a blurred, darker copy of itself,
  * matching the ffmpeg export (scale down, blur, scale up, darken).
  */
 export function drawFitted(ctx: Ctx, el: Media, W: number, H: number): void {
   const { w, h } = mediaSize(el)
   if (!w || !h) return
+  // A tiny canvas with the frame's shape: drawing into it and scaling it up gives a cheap blur.
+  const [bw, bh] = W < H ? [27, 48] : [48, 27]
+  if (blurCanvas.width !== bw || blurCanvas.height !== bh) {
+    blurCanvas.width = bw
+    blurCanvas.height = bh
+  }
   const b = blurCanvas.getContext('2d')!
   const cover = Math.max(blurCanvas.width / w, blurCanvas.height / h)
   b.drawImage(el, (blurCanvas.width - w * cover) / 2, (blurCanvas.height - h * cover) / 2, w * cover, h * cover)
@@ -139,25 +143,25 @@ function wrap(ctx: Ctx, text: string, maxW: number): string[] {
   return out
 }
 
-export function layoutText(ctx: Ctx, t: TextItem, scale: number): TextLayout {
+export function layoutText(ctx: Ctx, t: TextItem, scale: number, frame: Frame): TextLayout {
   const px = t.size * scale
   ctx.font = fontFor(t, px)
-  const lines = wrap(ctx, t.text || ' ', OUT_W * 0.86 * scale)
+  const lines = wrap(ctx, t.text || ' ', frame.w * 0.86 * scale)
   const widths = lines.map((l) => ctx.measureText(l).width)
   const lineH = px * 1.18
   const pad = t.style === 'box' ? px * 0.3 : px * 0.12
   const w = Math.max(...widths, px) + pad * 2
   const h = lines.length * lineH + pad * 2
-  const cx = t.x * OUT_W * scale
-  const cy = t.y * OUT_H * scale
+  const cx = t.x * frame.w * scale
+  const cy = t.y * frame.h * scale
   return { lines, lineH, widths, box: { x: cx - w / 2, y: cy - h / 2, w, h } }
 }
 
-export function drawText(ctx: Ctx, t: TextItem, scale: number): void {
-  const L = layoutText(ctx, t, scale)
+export function drawText(ctx: Ctx, t: TextItem, scale: number, frame: Frame): void {
+  const L = layoutText(ctx, t, scale, frame)
   const px = t.size * scale
-  const cx = t.x * OUT_W * scale
-  const top = t.y * OUT_H * scale - (L.lines.length * L.lineH) / 2
+  const cx = t.x * frame.w * scale
+  const top = t.y * frame.h * scale - (L.lines.length * L.lineH) / 2
   ctx.save()
   ctx.font = fontFor(t, px)
   ctx.textAlign = 'center'
@@ -195,8 +199,8 @@ export function drawText(ctx: Ctx, t: TextItem, scale: number): void {
   ctx.restore()
 }
 
-export function drawSelectionBox(ctx: Ctx, t: TextItem, scale: number): void {
-  const { box } = layoutText(ctx, t, scale)
+export function drawSelectionBox(ctx: Ctx, t: TextItem, scale: number, frame: Frame): void {
+  const { box } = layoutText(ctx, t, scale, frame)
   ctx.save()
   ctx.strokeStyle = '#ffd23f'
   ctx.lineWidth = 3
@@ -234,11 +238,11 @@ export function drawSafeZone(ctx: Ctx, W: number, H: number): void {
 }
 
 /** Renders one text item to a transparent full-size PNG for the ffmpeg export. */
-export async function renderTextPng(t: TextItem): Promise<Uint8Array> {
+export async function renderTextPng(t: TextItem, frame: Frame): Promise<Uint8Array> {
   const canvas = document.createElement('canvas')
-  canvas.width = OUT_W
-  canvas.height = OUT_H
-  drawText(canvas.getContext('2d')!, t, 1)
+  canvas.width = frame.w
+  canvas.height = frame.h
+  drawText(canvas.getContext('2d')!, t, 1, frame)
   const blob = await new Promise<Blob>((res, rej) =>
     canvas.toBlob((b) => (b ? res(b) : rej(new Error('No se pudo crear la imagen del texto'))), 'image/png')
   )

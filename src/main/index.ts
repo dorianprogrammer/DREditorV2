@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, session, shell, systemPrefer
 import { existsSync, mkdirSync, promises as fs } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { AUDIO_EXTS, type ExportRequest, type ExportResult, type MediaInfo, type Project } from '../shared/project'
+import { AUDIO_EXTS, FORMATS, type ExportRequest, type ExportResult, type MediaInfo, type Project } from '../shared/project'
 import { cancelExport, findSound, IMAGE_EXTS, prepareMedia, prepareMusic, renderVideo, saveVoice, VIDEO_EXTS } from './ffmpeg'
 import { handleMediaProtocol, registerMediaScheme } from './media-protocol'
 
@@ -153,10 +153,10 @@ function registerIpc(): void {
       const d = new Date()
       const pad = (n: number): string => String(n).padStart(2, '0')
       const stamp = `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()} ${pad(d.getHours())}.${pad(d.getMinutes())}.${pad(d.getSeconds())}`
-      const outPath = join(outDir, `Mi video ${stamp}.mp4`)
+      const outPath = join(outDir, `Mi video ${FORMATS[req.format].name} ${stamp}.mp4`)
       const partPath = join(workDir, 'video.mp4')
 
-      const status = await renderVideo(req.project, textFiles, workDir, partPath, (f) =>
+      const status = await renderVideo(req.project, req.format, textFiles, workDir, partPath, (f) =>
         win?.webContents.send('export:progress', f)
       )
       if (status === 'cancelled') return { ok: false, cancelled: true }

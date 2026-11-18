@@ -1,7 +1,17 @@
 // Project model and timeline math shared by the preview (renderer) and the export (main).
 
-export const OUT_W = 1080
-export const OUT_H = 1920
+export type VideoFormat = 'tiktok' | 'youtube'
+
+export interface Frame {
+  w: number
+  h: number
+}
+
+/** Output frame per format. Both are 1080 px on the short side, so text sizes mean the same in both. */
+export const FORMATS: Record<VideoFormat, Frame & { name: string }> = {
+  tiktok: { w: 1080, h: 1920, name: 'TikTok' },
+  youtube: { w: 1920, h: 1080, name: 'YouTube' }
+}
 export const FPS = 30
 export const TRANSITION_SECONDS = 0.6
 export const MIN_CLIP_SECONDS = 0.3
@@ -37,7 +47,7 @@ export interface TextItem {
   /** Center position, 0..1 of the frame. */
   x: number
   y: number
-  /** Font size in output pixels (frame is 1080 wide). */
+  /** Font size in output pixels (both formats are 1080 px on the short side). */
   size: number
   color: string
   style: TextStyle
@@ -72,7 +82,11 @@ export interface Project {
   voices: VoiceItem[]
   /** Added after the first release, so older projects don't have it. */
   music?: MusicItem | null
+  /** Vertical for TikTok or horizontal for YouTube. Missing in older projects, which were all TikTok. */
+  format?: VideoFormat
 }
+
+export const formatOf = (p: Project): VideoFormat => p.format ?? 'tiktok'
 
 export const AUDIO_EXTS = ['.mp3', '.m4a', '.aac', '.wav', '.ogg', '.oga', '.opus', '.flac']
 
@@ -160,7 +174,9 @@ export const FONT_FAMILIES: Record<FontKey, string> = {
 /** What the renderer sends to the main process to export. */
 export interface ExportRequest {
   project: Project
-  /** One transparent 1080x1920 PNG per text item, rendered by the same code as the preview. */
+  /** Can differ from project.format: one edit can be saved for TikTok and then for YouTube. */
+  format: VideoFormat
+  /** One transparent full-frame PNG per text item, rendered by the same code as the preview. */
   textImages: { id: string; png: Uint8Array }[]
 }
 

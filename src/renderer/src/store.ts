@@ -11,6 +11,7 @@ import {
   type MusicItem,
   type Project,
   type SoundRange,
+  type VideoFormat,
   type TextItem
 } from '@shared/project'
 
@@ -322,6 +323,15 @@ export function updateVoice(id: string, patch: Partial<Project['voices'][number]
     const v = p.voices.find((x) => x.id === id)
     if (v) Object.assign(v, patch)
   }, coalesceKey)
+}
+
+/** Switches between vertical (TikTok) and horizontal (YouTube). Everything else in the edit stays. */
+export function setFormat(format: VideoFormat): void {
+  const st = useEditor.getState()
+  if ((st.project.format ?? 'tiktok') === format) return
+  st.update((p) => {
+    p.format = format
+  })
 }
 
 export function updateMusic(patch: Partial<MusicItem>, coalesceKey?: string): void {

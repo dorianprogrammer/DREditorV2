@@ -1,4 +1,6 @@
 import {
+  FORMATS,
+  formatOf,
   layoutClips,
   mediaUrl,
   musicGain,
@@ -223,7 +225,8 @@ export class PreviewEngine {
     const ctx = this.canvas.getContext('2d')!
     const W = this.canvas.width
     const H = this.canvas.height
-    const scale = W / 1080
+    const frame = FORMATS[formatOf(p)]
+    const scale = W / frame.w
     ctx.fillStyle = '#000'
     ctx.fillRect(0, 0, W, H)
 
@@ -245,12 +248,12 @@ export class PreviewEngine {
     }
 
     for (const tx of p.texts) {
-      if (t >= tx.start && t < tx.start + tx.duration) drawText(ctx, tx, scale)
+      if (t >= tx.start && t < tx.start + tx.duration) drawText(ctx, tx, scale, frame)
     }
     if (!playing && selection?.kind === 'text') {
       const tx = p.texts.find((x) => x.id === selection.id)
-      if (tx && t >= tx.start && t < tx.start + tx.duration) drawSelectionBox(ctx, tx, scale)
+      if (tx && t >= tx.start && t < tx.start + tx.duration) drawSelectionBox(ctx, tx, scale, frame)
     }
-    if (safeZone) drawSafeZone(ctx, W, H)
+    if (safeZone && formatOf(p) === 'tiktok') drawSafeZone(ctx, W, H)
   }
 }

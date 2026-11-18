@@ -7,18 +7,18 @@ import { basename, extname, join } from 'node:path'
 import {
   DUCK_LEVEL,
   DUCK_RAMP,
+  FORMATS,
   FPS,
   MUSIC_FADE_IN,
   MUSIC_FADE_OUT,
-  OUT_H,
-  OUT_W,
   layoutClips,
   projectDuration,
   type MediaInfo,
   type MusicItem,
   type Project,
   type SoundRange,
-  type TransitionKind
+  type TransitionKind,
+  type VideoFormat
 } from '../shared/project'
 
 export function ffmpegPath(): string {
@@ -209,8 +209,13 @@ const TO_STEREO = 'aresample=48000,aformat=channel_layouts=mono|stereo,pan=stere
 /** Builds the ffmpeg arguments and filter graph that render the project to a TikTok-ready MP4. */
 export function buildExportGraph(
   project: Project,
+  format: VideoFormat,
   textFiles: Map<string, string>
 ): { inputs: string[]; graph: string; duration: number } {
+  const { w: OUT_W, h: OUT_H } = FORMATS[format]
+  // The blurred background is made at quarter size (cheaper blur), then scaled up.
+  const bgW = OUT_W / 4
+  const bgH = OUT_H / 4
   const placed = layoutClips(project.clips)
   const total = projectDuration(project)
   const inputs: string[] = []
@@ -230,10 +235,10 @@ export function buildExportGraph(
     }
     const idx = n++
 
-    // Fit the clip into 9:16 over a blurred, darker copy of itself (no black bars).
+    // Fit the clip into the frame over a blurred, darker copy of itself (no black bars).
     filters.push(`[${idx}:v]fps=${FPS},split=2[bg${i}][fg${i}]`)
     filters.push(
-      `[bg${i}]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=12:2,` +
+      `[bg${i}]scale=${bgW}:${bgH}:force_original_aspect_ratio=increase,crop=${bgW}:${bgH},boxblur=12:2,` +
         `scale=${OUT_W}:${OUT_H},eq=brightness=-0.12[bgb${i}]`
     )
     filters.push(`[fg${i}]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=decrease[fgs${i}]`)
@@ -330,12 +335,13 @@ export function cancelExport(): void {
 
 export async function renderVideo(
   project: Project,
+  format: VideoFormat,
   textFiles: Map<string, string>,
   workDir: string,
   outPath: string,
   onProgress: (fraction: number) => void
 ): Promise<'done' | 'cancelled'> {
-  const { inputs, graph, duration } = buildExportGraph(project, textFiles)
+  const { inputs, graph, duration } = buildExportGraph(project, format, textFiles)
   const graphFile = join(workDir, 'graph.txt')
   await fs.writeFile(graphFile, graph)
   const args = [
