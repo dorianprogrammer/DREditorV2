@@ -1,7 +1,7 @@
 {
   "name": "dreditor",
   "productName": "DR Editor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Editor de videos para TikTok, hecho para niños",
   "author": "Dorian Rodriguez",
   "main": "./out/main/index.js",
